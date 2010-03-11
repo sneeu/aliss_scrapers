@@ -67,8 +67,8 @@ def worker():
         item = work_queue.get()
         try:
             do_work(*item)
-        except:
-            pass
+        except Exception, e:
+            print e
         work_queue.task_done()
 
 

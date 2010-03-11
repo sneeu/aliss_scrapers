@@ -20,14 +20,6 @@ data = []
 lock = threading.Lock()
 
 
-class synchronized:
-    def __enter__(self):
-        lock.acquire()
-
-    def __exit__(self, type, value, traceback):
-        lock.release()
-
-
 def do_work(*args):
     location = args[0]
     # print location
@@ -44,7 +36,7 @@ def do_work(*args):
 
     item = {"lat_lon": [lat, lng], "latitude": lat, "longitude": lng, "_types": ["Location"], "name": address, "woeid": woeid, "placetype": placetype, "_cls": "Location"}
 
-    with synchronized():
+    with lock:
         print '.'
         data.append(item)
 
