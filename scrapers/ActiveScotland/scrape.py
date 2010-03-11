@@ -1,3 +1,4 @@
+import json
 import Queue
 import threading
 from urlparse import urlparse, parse_qs
@@ -7,14 +8,16 @@ from BeautifulSoup import BeautifulSoup
 
 from soupselect import select as css
 
+from locations import LOCATIONS
 
-LOCATIONS = ['eh%d' % d for d in range(1, 2)]
+
 URL_TEMPLATE = 'http://www.activescotland.org.uk/search/results.html?location=%s&new=true&resultsPerPage=100'
 
 
-NUMBER_OF_WORKERS = 1
+NUMBER_OF_WORKERS = 10
 work_queue = Queue.Queue()
-screen_lock = threading.Lock()
+data = {}
+data_lock = threading.Lock()
 
 
 def do_work(*args):
@@ -43,15 +46,29 @@ def do_work(*args):
             ll = parse_qs(urlparse(img[0]['src']).query)
             lat, lng = ll['lat'][0], ll['lng'][0]
 
-        screen_lock.acquire()
-        print title, lat, lng, url, phone, short_address, ', '.join(activities)
-        screen_lock.release()
+        item = {
+            'title': title,
+            'lat': lat,
+            'lng': lng,
+            'url': url,
+            'phone': phone,
+            'short_address': short_address,
+            'tags': activities
+        }
+
+        data_lock.acquire()
+        data[item['url']] = item
+        print '.'
+        data_lock.release()
 
 
 def worker():
     while True:
         item = work_queue.get()
-        do_work(*item)
+        try:
+            do_work(*item)
+        except:
+            pass
         work_queue.task_done()
 
 
@@ -69,6 +86,7 @@ def main():
         work_queue.put([url])
 
     work_queue.join()
+    print json.dumps(data)
 
 
 if __name__ == '__main__':
