@@ -15,8 +15,17 @@ URL_TEMPLATE = 'http://www.geomojo.org/cgi-bin/reversegeocoder.cgi?lat=%s&long=%
 NUMBER_OF_WORKERS = 10
 TIMEOUT=15
 work_queue = Queue.Queue()
-data = {}
-data_lock = threading.Lock()
+data = []
+
+lock = threading.Lock()
+
+
+class synchronized:
+    def __enter__(self):
+        lock.acquire()
+
+    def __exit__(self, type, value, traceback):
+        lock.release()
 
 
 def do_work(*args):
@@ -26,26 +35,18 @@ def do_work(*args):
 
     url = URL_TEMPLATE % (lat, lng)
 
-    data_lock.acquire()
-    print url
-    data_lock.release()
-
     xml = ''.join(urllib2.urlopen(url, timeout=TIMEOUT).readlines())
     soup = BeautifulSoup(xml)
 
     woeid = None
-    try:
-        woeid = css(soup, 'woeid')[0].contents[0]
-        placetype = css(soup, 'type')[0].contents[0]
-    except Exception, e:
-        print e
+    woeid = css(soup, 'woeid')[0].contents[0]
+    placetype = css(soup, 'type')[0].contents[0]
 
     item = {"lat_lon": [lat, lng], "latitude": lat, "longitude": lng, "_types": ["Location"], "name": address, "woeid": woeid, "placetype": placetype, "_cls": "Location"}
 
-    data_lock.acquire()
-    print '.'
-    data.append(item)
-    data_lock.release()
+    with synchronized():
+        print '.'
+        data.append(item)
 
 
 def worker():
@@ -53,8 +54,8 @@ def worker():
         item = work_queue.get()
         try:
             do_work(*item)
-        except:
-            pass
+        except Exception, e:
+            print e
         work_queue.task_done()
 
 
