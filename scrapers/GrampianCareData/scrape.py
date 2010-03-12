@@ -1,5 +1,6 @@
 import json
 import re
+import sys
 import Queue
 import threading
 import urllib2
@@ -23,6 +24,9 @@ def do_work(*args):
     # Do something with args
     url = args[0]
 
+    with LOCK:
+        print url
+
     html = ''.join(urllib2.urlopen(url, timeout=TIMEOUT).readlines())
     html = html.replace('<!- Google Analytics -->', '')
     html = re.sub('<script.*?>[\s\S]*?</.*?script>', '', html)
@@ -30,8 +34,7 @@ def do_work(*args):
 
     item = {}
 
-    for listitem in css(soup, '.search-row-grey-wrapper'):
-        # print listitem
+    def parse(listitem):
         title = ident = web = short_address = phone = lat = lng = None
         tags = []
 
@@ -64,8 +67,14 @@ def do_work(*args):
         }
 
         with LOCK:
-            print '.',
-            data[url] = item
+            sys.stdout.write('.')
+            data[ident] = item
+
+    for listitem in css(soup, '.search-row-grey-wrapper'):
+        parse(listitem)
+
+    for listitem in css(soup, '.search-row-white-wrapper'):
+        parse(listitem)
 
 
 number_of_workers = 5
